@@ -1,0 +1,155 @@
+_schema-version: "3.1"
+ID: cert-001
+description: A simple CAP project.
+version: 1.0.0
+
+modules:
+# --------------------- APP ROUTER MODULE --------------------
+- name: cert-001-aprouter
+# ------------------------------------------------------------
+  type: nodejs
+  path: app
+  requires:
+    - name: cert-001-repo-runtime
+    - name: cert-001-xsuaa  
+    - name: srv-api
+      group: destinations
+      properties:
+        # defining a destination with the name srv_api for the approuter to use
+        name: srv_api 
+        url: '~{srv-url}'
+        forwardAuthToken: true
+
+# --------------------- SERVER MODULE ------------------------
+- name: cert-001-srv
+# ------------------------------------------------------------
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: cert-001-destination
+  - name: cert-001-connectivity
+  - name: cert-001-xsuaa
+  - name: cert-001-db
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+  build-parameters:
+    builder: npm-ci
+
+# ---------------- DATABASE DEPLOYER MODULE ------------------
+- name: cert-001-db-deployer
+# ------------------------------------------------------------
+  type: hdb
+  path: gen/db
+  requires:
+  - name: cert-001-db
+  parameters:
+    buildpack: nodejs_buildpack
+
+# ---------------- APP CONTENT MODULE ------------------------
+- name: cert-001-app-content
+# ------------------------------------------------------------
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: cert-001-repo-host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - escalationsfe.zip
+      name: escalationsfe
+      target-path: resources/
+
+# ---------------- UI APP MODULE -----------------------------
+- name: escalationsfe
+# ------------------------------------------------------------
+  type: html5
+  path: app/escalationsfe
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+    
+resources:
+# -------------------- DESTINATION SERVICE -------------------
+- name: cert-001-destination
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: false
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          existing_destinations_policy: update
+    service: destination
+    service-plan: lite
+
+# ------------------- CONNECTIVITY SERVICE -------------------    
+- name: cert-001-connectivity
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: connectivity
+    service-plan: lite
+# ------------------- XSUAA SERVICE --------------------------    
+- name: cert-001-xsuaa
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: xsuaa
+    service-plan: application
+    path: ./xs-security.json
+# ------------------- HDI CONTAINER SERVICE ------------------
+- name: cert-001-db
+# ------------------------------------------------------------
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+  properties:
+    hdi-service-name: ${service-name}
+# ------------------- REPO HOST SERVICE ----------------------
+- name: cert-001-repo-host
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: cert-001-html5-srv
+    service-plan: app-host
+# ------------------- REPO RUNTIME SERVICE -------------------
+- name: cert-001-repo-runtime
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: cert-001-html5-rt
+    service-plan: app-runtime
+
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm config set registry https://registry.npmjs.org/
+    - npm config set @sap:registry https://registry.npmjs.org/
+    - npm ci
+    - npm install --production
+    - npx -p @sap/cds-dk cds build --production

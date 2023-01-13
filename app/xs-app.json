@@ -1,0 +1,17 @@
+{
+    "welcomeFile": "index.html",
+    "authenticationMethod": "none",
+    "routes": [
+      {
+        "source": "^/ems/",
+        "destination": "srv_api",
+        "scope": ["purchaser_scope", "manager_scope"]
+      },
+      {
+        "source": "(.*)",
+        "target": "/escalationsfe/$1",
+        "service": "html5-apps-repo-rt",
+        "authenticationType": "xsuaa" 
+      }    
+    ]
+}

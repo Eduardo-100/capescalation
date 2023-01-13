@@ -1,0 +1,33 @@
+{
+    "xsappname": "cert-001",
+    "tenant-mode": "dedicated",
+    "scopes": [
+        {
+            "name": "$XSAPPNAME.manager_scope",
+            "description": "manager"
+        },
+        {
+            "name": "$XSAPPNAME.purchaser_scope",
+            "description": "purchaser"
+        }
+    ],
+    "attributes": [],
+    "role-templates": [
+        {
+            "name": "manager",
+            "description": "generated",
+            "scope-references": [
+                "$XSAPPNAME.manager_scope"
+            ],
+            "attribute-references": []
+        },
+        {
+            "name": "purchaser",
+            "description": "generated",
+            "scope-references": [
+                "$XSAPPNAME.purchaser_scope"
+            ],
+            "attribute-references": []
+        }
+    ]
+}
